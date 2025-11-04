@@ -88,7 +88,11 @@ class ConnectomePlugin(Star):
         llm_hook_conf = conf.get("llm_hook", {}) or {}
         self.llm_hook_enable = bool(llm_hook_conf.get("enable", True))
         self.llm_hook_log_enable = bool(llm_hook_conf.get("log", True))
+        self.llm_hook_capture_enable = bool(llm_hook_conf.get("capture", True))
         self.llm_req_count = 0
+        self.last_system_prompt = None
+        self.last_prompt_time = None
+        self.last_prompt_session = None
 
         # WebUI 配置
         self.webui_enable = bool(conf.get("webui_enable", True))
@@ -342,9 +346,64 @@ class ConnectomePlugin(Star):
                     )
                 except Exception:
                     pass
+
+            # 捕获最终（当前钩子时刻）system_prompt，便于回显
+            if self.llm_hook_capture_enable:
+                try:
+                    self.last_system_prompt = req.system_prompt
+                    try:
+                        from datetime import datetime
+                        self.last_prompt_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    except Exception:
+                        self.last_prompt_time = None
+                    try:
+                        self.last_prompt_session = event.message_obj.session_id
+                    except Exception:
+                        self.last_prompt_session = None
+                except Exception:
+                    pass
         except Exception:
             # 安全兜底，不影响默认流程
             return
+
+    @filter.command("prompt")
+    async def prompt_cmd(self, event: AstrMessageEvent):
+        """查看最近一次发送给 AI 的系统提示：/prompt [last|status|on|off|clear]
+        - last: 显示最后一次捕获的系统提示
+        - status: 查看捕获开关与最近一次捕获时间/会话
+        - on/off: 开启或关闭提示捕获
+        - clear: 清空已捕获的提示
+        """
+        try:
+            parts = (event.message_str or "").strip().split()
+            sub = parts[1].lower() if len(parts) > 1 else "last"
+            if sub == "on":
+                self.llm_hook_capture_enable = True
+                yield event.plain_result("提示捕获功能已开启")
+                return
+            if sub == "off":
+                self.llm_hook_capture_enable = False
+                yield event.plain_result("提示捕获功能已关闭")
+                return
+            if sub == "clear":
+                self.last_system_prompt = None
+                self.last_prompt_time = None
+                self.last_prompt_session = None
+                yield event.plain_result("已清空最近提示记录")
+                return
+            if sub == "status":
+                status = "开启" if self.llm_hook_capture_enable else "关闭"
+                info = f"状态: {status}\n最近捕获时间: {self.last_prompt_time or '无'}\n最近会话: {self.last_prompt_session or '无'}"
+                yield event.plain_result(info)
+                return
+            # 默认 last
+            if not self.last_system_prompt:
+                yield event.plain_result("暂无捕获的系统提示。请先与 AI 进行一次对话以生成提示。")
+                return
+            header = f"[最近系统提示] 时间={self.last_prompt_time or '未知'} 会话={self.last_prompt_session or '未知'}"
+            yield event.plain_result(f"{header}\n\n{self.last_system_prompt}")
+        except Exception as e:
+            yield event.plain_result(f"执行失败: {e}")
 
     @filter.command("connectome")
     async def connectome(self, event: AstrMessageEvent):

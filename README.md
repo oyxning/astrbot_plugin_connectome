@@ -57,6 +57,7 @@
 - WebUI 控制：` /webui start|stop|status|open`
 - 感知系统：` /perception status|refresh|tz <TZ>|city <名称>|coord <lat> <lon>`
  - 指标控制：` /metrics status|start|stop|interval <秒>|once|on_think on|off`
+ - 提示查看：` /prompt [last|status|on|off|clear]`
 
 **WebUI**
 - 自动启动：插件初始化时按配置启动 Uvicorn，并通过 `CONNECTOME_DB_PATH` 传递数据库路径。
@@ -77,6 +78,7 @@
 - 行为：在每次向 LLM 发起请求前，插件会将 Connectome 的关键状态（能量/疲劳、昼夜相位、环境感知、模块权重 Top 等）与简洁的思考策略注入系统提示，使模型无需额外指令即可采用更贴近“人类思考”的方式组织回答。
 - 策略：先澄清目标与要点；按能量/疲劳调整推理深度；参考高权重模块组织结构；输出可执行建议并标注风险/不确定性。
 - 透明：该注入不改变用户输入，仅增强系统提示；如需关闭，在配置中设置 `llm_hook.enable=false`。若需在控制台观测注入事件与状态，保持 `llm_hook.log=true`（默认启用）。
+ - 查看最近提示：使用 ` /prompt last` 可显示最近一次发送给 AI 的系统提示（在当前钩子时刻捕获，通常包含其他插件已注入的内容）；可用 ` /prompt status|on|off|clear` 管理捕获。
 
 **持久化与表结构**
 - 记忆库：`memories(id, session_id, role, content, created_at)`

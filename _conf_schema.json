@@ -110,7 +110,8 @@
     "type": "object",
     "items": {
       "enable": { "description": "启用提示注入", "type": "bool", "default": true },
-      "log": { "description": "在控制台输出注入提示状态", "type": "bool", "default": true }
+      "log": { "description": "在控制台输出注入提示状态", "type": "bool", "default": true },
+      "capture": { "description": "捕获并保存最近一次系统提示", "type": "bool", "default": true }
     }
   },
   "neuromodulators": {
