@@ -1,0 +1,8 @@
+name: astrbot_plugin_connectome
+display_name: Connectome Thinker
+author: LumineStory
+version: 0.1.0
+description: 让 AI 以多尺度连接组与记忆机制进行类人脑思考。
+repo_url: https://github.com/oyxning/astrbot_plugin_connectome
+license: MIT
+homepage: https://docs.astrbot.app/dev/star/plugin.html

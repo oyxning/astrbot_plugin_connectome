@@ -1,0 +1,354 @@
+{
+  "enable_by_default": {
+    "description": "默认在新会话启用 Connectome 思考模式",
+    "type": "bool",
+    "default": false
+  },
+  "memory_db_path": {
+    "description": "SQLite 记忆库文件路径",
+    "type": "string",
+    "hint": "相对路径或绝对路径",
+    "default": "./connectome_memory.db"
+  },
+  "webui_enable": {
+    "description": "插件启动时自动启动 WebUI",
+    "type": "bool",
+    "default": true
+  },
+  "webui_host": {
+    "description": "WebUI 监听地址",
+    "type": "string",
+    "default": "127.0.0.1"
+  },
+  "webui_port": {
+    "description": "WebUI 端口",
+    "type": "int",
+    "default": 8000
+  },
+  "max_memory_per_session": {
+    "description": "每个会话保留的最大记忆条目",
+    "type": "int",
+    "default": 200
+  },
+  "ei_balance": {
+    "description": "兴奋/抑制平衡(0-1)，0.5 为中性",
+    "type": "float",
+    "default": 0.5
+  },
+  "rl_enable": {
+    "description": "启用强化学习（奖励驱动的权重更新）",
+    "type": "bool",
+    "default": true
+  },
+  "rl_alpha": {
+    "description": "学习率（每次奖励的更新幅度）",
+    "type": "float",
+    "default": 0.1
+  },
+  "rl_gamma": {
+    "description": "折扣因子（路径前缀节点的奖励折扣）",
+    "type": "float",
+    "default": 0.9
+  },
+  "auto_reward": {
+    "description": "在 think 后根据关键词自动给予奖励",
+    "type": "bool",
+    "default": false
+  },
+  "reward_keywords": {
+    "description": "自动奖励关键词（正/负）",
+    "type": "object",
+    "items": {
+      "positive": { "description": "正向关键词（逗号分隔）", "type": "string", "default": "成功,好,赞,正确" },
+      "negative": { "description": "负向关键词（逗号分隔）", "type": "string", "default": "失败,差,不行,错误" }
+    }
+  },
+  "reasoning_depth": {
+    "description": "推理步骤深度(层级化多步思考)",
+    "type": "int",
+    "default": 3
+  },
+  "modules": {
+    "description": "功能网络权重(0-2)，1 为默认",
+    "type": "object",
+    "items": {
+      "dmn": { "description": "默认模式网络", "type": "float", "default": 1.0 },
+      "salience": { "description": "显著性网络", "type": "float", "default": 1.0 },
+      "control": { "description": "前顶控制网络", "type": "float", "default": 1.0 },
+      "dorsal_attention": { "description": "背侧注意网络", "type": "float", "default": 1.0 },
+      "ventral_attention": { "description": "腹侧注意网络", "type": "float", "default": 1.0 },
+      "language": { "description": "语言网络", "type": "float", "default": 1.0 },
+      "visual": { "description": "视觉网络", "type": "float", "default": 1.0 },
+      "auditory": { "description": "听觉网络", "type": "float", "default": 1.0 },
+      "sensorimotor": { "description": "感觉-运动网络", "type": "float", "default": 1.0 },
+      "limbic": { "description": "边缘网络", "type": "float", "default": 1.0 }
+    }
+  }
+  ,
+  "perception": {
+    "description": "时间与天气感知设置",
+    "type": "object",
+    "items": {
+      "enable": { "description": "启用时间/天气感知", "type": "bool", "default": true },
+      "time_zone": { "description": "时区标识（IANA TZ，如 Asia/Shanghai）", "type": "string", "default": "Asia/Shanghai" },
+      "geo_city": { "description": "城市名称（用于地理编码）", "type": "string", "default": "Shanghai" },
+      "geo_lat": { "description": "纬度（优先使用坐标）", "type": "float", "default": null },
+      "geo_lon": { "description": "经度（优先使用坐标）", "type": "float", "default": null }
+    }
+  },
+  "neuromodulators": {
+    "description": "神经调质水平(0-2)",
+    "type": "object",
+    "items": {
+      "da": { "description": "多巴胺 DA（RPE/动机）", "type": "float", "default": 1.0 },
+      "ach": { "description": "乙酰胆碱 ACh（注意/学习率）", "type": "float", "default": 1.0 },
+      "ne": { "description": "去甲肾上腺素 NE（增益/噪声）", "type": "float", "default": 1.0 },
+      "5ht": { "description": "5-HT（稳态/情绪）", "type": "float", "default": 1.0 }
+    }
+  },
+  "oscillation": {
+    "description": "脑节律参数",
+    "type": "object",
+    "items": {
+      "theta_gamma_coupling": { "description": "θ–γ耦合强度(0-1)", "type": "float", "default": 0.5 }
+    }
+  },
+  "plasticity": {
+    "description": "可塑性参数",
+    "type": "object",
+    "items": {
+      "stdp_strength": { "description": "STDP 强度(0-1)", "type": "float", "default": 0.5 },
+      "homeostatic_gain": { "description": "稳态可塑性增益(0-1)", "type": "float", "default": 0.1 },
+      "metaplasticity": { "description": "元可塑性水平(0-1)", "type": "float", "default": 0.5 }
+    }
+  },
+  "myelination": {
+    "description": "髓鞘化与时序",
+    "type": "object",
+    "items": {
+      "myelination_rate": { "description": "髓鞘化速率(0-1)", "type": "float", "default": 0.5 },
+      "conduction_delay_scaling": { "description": "传导延迟缩放(0-1)", "type": "float", "default": 0.1 }
+    }
+  },
+  "cortical_layers": {
+    "description": "层特异性投射强度",
+    "type": "object",
+    "items": {
+      "feedforward_strength": { "description": "II/III→IV 前馈", "type": "float", "default": 1.0 },
+      "feedback_strength": { "description": "V/VI 反馈", "type": "float", "default": 1.0 },
+      "lateral_strength": { "description": "皮层水平联接", "type": "float", "default": 1.0 }
+    }
+  },
+  "basal_ganglia": {
+    "description": "基底节参数",
+    "type": "object",
+    "items": {
+      "epsilon_exploration": { "description": "探索率(0-1)", "type": "float", "default": 0.1 },
+      "habit_strength": { "description": "习惯化强度(0-1)", "type": "float", "default": 0.5 }
+    }
+  },
+  "cerebellum": {
+    "description": "小脑学习率",
+    "type": "object",
+    "items": {
+      "lr": { "description": "教学信号学习率(0-1)", "type": "float", "default": 0.1 }
+    }
+  },
+  "hippocampus": {
+    "description": "海马回放与巩固",
+    "type": "object",
+    "items": {
+      "replay_enable": { "description": "启用回放", "type": "bool", "default": true },
+      "sleep_enable": { "description": "启用睡眠巩固", "type": "bool", "default": true }
+    }
+  },
+  "attention": {
+    "description": "注意系统（Posner 三网络）",
+    "type": "object",
+    "items": {
+      "alerting": { "description": "警觉网络权重(0-2)", "type": "float", "default": 1.0 },
+      "orienting": { "description": "定向网络权重(0-2)", "type": "float", "default": 1.0 },
+      "executive": { "description": "执行注意权重(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "working_memory": {
+    "description": "工作记忆（Baddeley 模型）",
+    "type": "object",
+    "items": {
+      "loop_capacity": { "description": "语音环路容量(1-9)", "type": "int", "default": 7 },
+      "sketchpad_capacity": { "description": "视空草图容量(1-9)", "type": "int", "default": 4 },
+      "buffer_capacity": { "description": "情景缓冲区容量(1-12)", "type": "int", "default": 8 },
+      "refresh_rate": { "description": "刷新率(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "learning": {
+    "description": "学习机制",
+    "type": "object",
+    "items": {
+      "classical_strength": { "description": "经典条件作用强度(0-2)", "type": "float", "default": 1.0 },
+      "operant_strength": { "description": "操作性条件作用强度(0-2)", "type": "float", "default": 1.0 },
+      "statistical_strength": { "description": "统计学习强度(0-2)", "type": "float", "default": 1.0 },
+      "rl_model_free_weight": { "description": "模型自由权重(0-1)", "type": "float", "default": 0.7 },
+      "rl_model_based_weight": { "description": "模型驱动权重(0-1)", "type": "float", "default": 0.3 }
+    }
+  },
+  "decision": {
+    "description": "价值评估与决策",
+    "type": "object",
+    "items": {
+      "risk_aversion": { "description": "风险厌恶(0-2)", "type": "float", "default": 1.0 },
+      "loss_aversion": { "description": "损失厌恶(0-2)", "type": "float", "default": 1.2 },
+      "time_discount": { "description": "时间折扣(0-1)", "type": "float", "default": 0.9 }
+    }
+  },
+  "executive": {
+    "description": "执行功能",
+    "type": "object",
+    "items": {
+      "inhibition": { "description": "抑制控制(0-2)", "type": "float", "default": 1.0 },
+      "updating": { "description": "更新(0-2)", "type": "float", "default": 1.0 },
+      "shifting": { "description": "集合转换(0-2)", "type": "float", "default": 1.0 },
+      "monitoring": { "description": "监控与计划(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "metacognition": {
+    "description": "元认知",
+    "type": "object",
+    "items": {
+      "confidence_calibration": { "description": "信心校准(0-2)", "type": "float", "default": 1.0 },
+      "error_monitoring": { "description": "误差监控敏感度(0-2)", "type": "float", "default": 1.0 },
+      "control_threshold": { "description": "策略选择阈值(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "emotion": {
+    "description": "情绪状态与调节",
+    "type": "object",
+    "items": {
+      "valence": { "description": "效价(-1~1 映射到 0~2)", "type": "float", "default": 1.0 },
+      "arousal": { "description": "唤醒(0-2)", "type": "float", "default": 1.0 },
+      "reappraisal_strength": { "description": "认知重评(0-2)", "type": "float", "default": 1.0 },
+      "suppression_strength": { "description": "反应抑制(0-2)", "type": "float", "default": 0.5 }
+    }
+  },
+  "motivation": {
+    "description": "动机与驱力（SDT）",
+    "type": "object",
+    "items": {
+      "autonomy": { "description": "自主性(0-2)", "type": "float", "default": 1.0 },
+      "competence": { "description": "胜任感(0-2)", "type": "float", "default": 1.0 },
+      "relatedness": { "description": "联结(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "habit": {
+    "description": "习惯与技能化",
+    "type": "object",
+    "items": {
+      "formation_rate": { "description": "习惯形成速率(0-2)", "type": "float", "default": 1.0 },
+      "chunking_strength": { "description": "分块化强度(0-2)", "type": "float", "default": 1.0 },
+      "automation_level": { "description": "自动化水平(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "homeostasis": {
+    "description": "体内平衡（能量/疲劳/体温）",
+    "type": "object",
+    "items": {
+      "energy": { "description": "能量水平(0-2)", "type": "float", "default": 1.0 },
+      "fatigue": { "description": "疲劳水平(0-2)", "type": "float", "default": 0.5 },
+      "body_temp": { "description": "体温相对基线(0-2, 1 为常态)", "type": "float", "default": 1.0 }
+    }
+  },
+  "autonomic": {
+    "description": "自主神经（交感/副交感）",
+    "type": "object",
+    "items": {
+      "sympathetic": { "description": "交感激活(0-2)", "type": "float", "default": 1.0 },
+      "parasympathetic": { "description": "副交感激活(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "hormones": {
+    "description": "激素全局调制",
+    "type": "object",
+    "items": {
+      "cortisol": { "description": "皮质醇(0-2)", "type": "float", "default": 1.0 },
+      "adrenaline": { "description": "肾上腺素(0-2)", "type": "float", "default": 1.0 },
+      "oxytocin": { "description": "催产素(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "circadian": {
+    "description": "昼夜节律/睡眠压力",
+    "type": "object",
+    "items": {
+      "circadian_phase": { "description": "昼夜相位(0-1)", "type": "float", "default": 0.5 },
+      "sleep_pressure": { "description": "睡眠压力(0-2)", "type": "float", "default": 0.5 }
+    }
+  },
+  "pain_immune": {
+    "description": "疼痛/免疫负荷",
+    "type": "object",
+    "items": {
+      "nociception": { "description": "伤害性感受(0-2)", "type": "float", "default": 0.0 },
+      "inflammation": { "description": "炎症负荷(0-2)", "type": "float", "default": 0.0 }
+    }
+  },
+  "development": {
+    "description": "发育与衰老曲线",
+    "type": "object",
+    "items": {
+      "maturation": { "description": "成熟度(0-2)", "type": "float", "default": 1.0 },
+      "plasticity_curve": { "description": "可塑性曲线(0-2)", "type": "float", "default": 1.0 },
+      "senescence": { "description": "衰老因子(0-2)", "type": "float", "default": 0.0 }
+    }
+  },
+  "individual": {
+    "description": "个体差异（特质）",
+    "type": "object",
+    "items": {
+      "openness": { "description": "开放性(0-2)", "type": "float", "default": 1.0 },
+      "conscientiousness": { "description": "尽责性(0-2)", "type": "float", "default": 1.0 },
+      "extraversion": { "description": "外向性(0-2)", "type": "float", "default": 1.0 },
+      "agreeableness": { "description": "宜人性(0-2)", "type": "float", "default": 1.0 },
+      "neuroticism": { "description": "神经质(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "body_schema": {
+    "description": "身体图式/代理",
+    "type": "object",
+    "items": {
+      "agency": { "description": "主观能动性(0-2)", "type": "float", "default": 1.0 },
+      "proprioception_noise": { "description": "本体感觉噪声(0-2)", "type": "float", "default": 0.5 },
+      "motor_cost": { "description": "动作代价缩放(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "norms": {
+    "description": "社会—法理—文化规范敏感度",
+    "type": "object",
+    "items": {
+      "legal": { "description": "法律合规敏感度(0-2)", "type": "float", "default": 1.0 },
+      "social": { "description": "社会规范敏感度(0-2)", "type": "float", "default": 1.0 },
+      "cultural": { "description": "文化背景权重(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "ethics": {
+    "description": "伦理停机/越权防护",
+    "type": "object",
+    "items": {
+      "override_guard": { "description": "越权防护强度(0-2)", "type": "float", "default": 1.5 },
+      "halt_threshold": { "description": "停机阈值(0-2)", "type": "float", "default": 1.5 }
+    }
+  },
+  "identity": {
+    "description": "叙事身份与长期记账",
+    "type": "object",
+    "items": {
+      "narrative_consistency": { "description": "叙事一致性(0-2)", "type": "float", "default": 1.0 },
+      "long_term_goals": { "description": "长期目标权重(0-2)", "type": "float", "default": 1.0 }
+    }
+  },
+  "guardian": {
+    "description": "伦理守护器",
+    "type": "object",
+    "items": {
+      "enable": { "description": "启用守护器", "type": "bool", "default": true }
+    }
+  }
+}

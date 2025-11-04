@@ -1,0 +1,87 @@
+# astrbot_plugin_connectome
+
+让 AI 具备“类人脑”多尺度思考能力：连接组协同 + 海马体记忆 + 强化学习 + 时间天气感知 + 可视化 WebUI。
+
+![Python](https://img.shields.io/badge/Python-3.13-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![FastAPI](https://img.shields.io/badge/FastAPI-%F0%9F%9A%80-teal)
+
+**概述**
+- 面向 AstrBot 的插件化思考引擎，融合神经生物学与认知心理学，实现分层、可记忆、可学习的推理过程。
+- 支持 WebUI 与命令行配置，参数更新持久化到 SQLite 并在思考前动态重载。
+
+**特性**
+- 多网络协同：默认模式、显著性、控制、注意、语言、视觉、听觉、感觉-运动、边缘网络。
+- E/I 平衡与分层推理：能量/疲劳与昼夜相位共同决定有效步数与偏好。
+- 海马体记忆与回放：基于 SQLite 的会话隔离记忆库，支持重放与睡眠巩固。
+- 强化学习：对最近路径奖励，更新模块权重并持久化（`rl_weights`）。
+- 时间与天气感知：自动获取本地时间/天气，注入上下文并联动昼夜/能量。
+- 守护与审计：伦理守护器评估并记录审计日志（`role='audit'`）。
+- WebUI：仪表化查看与编辑参数，审计列表与表单提交即时生效。
+
+**环境要求**
+- Python `3.13`
+- 依赖：`networkx`、`fastapi`、`uvicorn`、`jinja2`、`python-multipart`、`requests`
+
+**安装**
+- 将本仓库放置到 AstrBot 的 `data/plugins/astrbot_plugin_connectome` 目录。
+- 在插件根目录执行 `pip install -r requirements.txt` 安装依赖。
+
+**快速开始**
+- 启动 AstrBot 后，插件根据配置自动启动 WebUI。
+- 在聊天中执行：
+  - ` /connectome on` 启用本会话的类人脑思考模式。
+  - ` /connectome think <内容>` 发起分层思考并返回结论与轨迹。
+  - ` /audit` 查看守护评估审计条目。
+
+**配置**
+- 配置项由 `_conf_schema.json` 驱动，核心字段包括：
+  - 基本：`enable_by_default`、`memory_db_path`、`max_memory_per_session`
+  - 推理：`ei_balance`、`reasoning_depth`、`modules`、`reward_keywords`
+  - 强化学习：`rl_enable`、`rl_alpha`、`rl_gamma`、`auto_reward`
+  - 生物/心理/辅助系统：`neuromodulators`、`oscillation`、`plasticity`、`myelination`、`cortical_layers`、`basal_ganglia`、`cerebellum`、`hippocampus`、`attention`、`working_memory`、`learning`、`decision`、`executive`、`metacognition`、`emotion`、`motivation`、`habit`、`homeostasis`、`autonomic`、`hormones`、`circadian`、`pain_immune`、`development`、`individual`、`body_schema`、`norms`、`ethics`、`identity`
+  - WebUI：`webui_enable`、`webui_host`、`webui_port`
+  - 感知：`perception.enable`、`perception.time_zone`、`perception.geo_city`、`perception.geo_lat`、`perception.geo_lon`
+
+**命令**
+- 思考与管理：
+  - ` /connectome on|off|status|think <内容>|reward <值>`
+  - ` /remember <内容>` 写入记忆；` /replay [k]` 重放；` /sleep [replay_k alpha gamma]` 睡眠巩固
+  - ` /audit [limit=10]` 审计日志；` /guard on|off|status` 守护器开关；` /act <计划描述>` 行动评估
+- 参数更新：
+  - ` /neuromod ...`、` /wm ...`、` /policy ...`、` /emotion ...`
+  - ` /homeostasis ...`、` /autonomic ...`、` /hormone ...`、` /circadian ...`
+  - ` /pain ...`、` /development ...`、` /agency ...`、` /norms ...`、` /ethics ...`、` /identity ...`
+- WebUI 控制：` /webui start|stop|status|open`
+- 感知系统：` /perception status|refresh|tz <TZ>|city <名称>|coord <lat> <lon>`
+
+**WebUI**
+- 自动启动：插件初始化时按配置启动 Uvicorn，并通过 `CONNECTOME_DB_PATH` 传递数据库路径。
+- 访问：`http://127.0.0.1:8000/`
+- 功能：仪表盘参数编辑、审计表格、表单保存到 SQLite `adaptive_params` 并在思考前重载。
+
+**时间与天气感知**
+- 刷新时机：引擎初始化与每次 ` /connectome think` 前自动刷新。
+- 联动：将本地小时映射到 `circadian_phase` 与 `sleep_pressure`，在分层步骤中加入环境上下文，并对 `homeostasis.energy` 进行轻微调制。
+- 设置：通过命令或配置调整时区、城市或坐标。
+
+**持久化与表结构**
+- 记忆库：`memories(id, session_id, role, content, created_at)`
+- 强化学习：`rl_weights(node, weight)`
+- 参数库：`adaptive_params(key, value)`
+
+**架构**
+- 引擎：`connectome/engine.py` 使用 NetworkX 构建模块图；依据权重/EI/生理与昼夜等因素选择路径；生成分层步骤与总结。
+- 系统模块：`connectome/systems/` 包含体内平衡、自主神经、激素、昼夜、疼痛免疫、发育、个体、身体图式、规范、伦理、守护器、行动评估、感知。
+- WebUI：`webui/` 包含 FastAPI 应用与模板静态资源；入口 `webui.run:app`。
+
+**故障排查**
+- WebUI 启动失败：检查端口占用，修改 `webui_port` 或执行 ` /webui stop` 后重启；确认已安装 `python-multipart`。
+- 天气查询失败：网络不可达或地理编码失败时自动跳过，使用 ` /perception refresh` 重试或改用坐标。
+- SQLite 写入异常：在 Windows 下确认路径可写，建议使用绝对路径。
+
+**贡献**
+- 欢迎提交 Issue/PR：包括新系统模块、联动规则、WebUI 交互优化、性能与兼容性改进。
+- 代码风格：保持模块化与最小侵入；避免无关更改；文档与配置需同步更新。
+
+**许可证**
+- MIT
+

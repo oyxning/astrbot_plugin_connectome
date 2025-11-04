@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connectome WebUI</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Connectome 控制台</h1>
+    <p>实时查看与调整系统参数，审计日志可视化</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Guardian</h2>
+      <form method="post" action="/update" class="grid">
+        <label>
+          启用守卫：
+          <select name="guardian_enable">
+            <option value="true" {{ 'selected' if guardian.get('enable') else '' }}>True</option>
+            <option value="false" {{ '' if guardian.get('enable') else 'selected' }}>False</option>
+          </select>
+        </label>
+        <label>
+          Halt 阈值：
+          <input type="number" step="0.01" name="halt_threshold" value="{{ ethics.get('halt_threshold', '') }}" />
+        </label>
+        <label>
+          Override Guard：
+          <input type="number" step="0.01" name="override_guard" value="{{ ethics.get('override_guard', '') }}" />
+        </label>
+
+        <button type="submit">保存</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Hormones</h2>
+      <form method="post" action="/update" class="grid">
+        <label>
+          Adrenaline：
+          <input type="number" step="0.01" name="adrenaline" value="{{ hormones.get('adrenaline', '') }}" />
+        </label>
+        <label>
+          Cortisol：
+          <input type="number" step="0.01" name="cortisol" value="{{ hormones.get('cortisol', '') }}" />
+        </label>
+        <label>
+          Oxytocin：
+          <input type="number" step="0.01" name="oxytocin" value="{{ hormones.get('oxytocin', '') }}" />
+        </label>
+        <button type="submit">保存</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Circadian</h2>
+      <form method="post" action="/update" class="grid">
+        <label>
+          相位：
+          <input type="number" step="0.01" name="circadian_phase" value="{{ circadian.get('circadian_phase', '') }}" />
+        </label>
+        <label>
+          睡眠压力：
+          <input type="number" step="0.01" name="sleep_pressure" value="{{ circadian.get('sleep_pressure', '') }}" />
+        </label>
+        <button type="submit">保存</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Pain & Immune</h2>
+      <form method="post" action="/update" class="grid">
+        <label>
+          Nociception：
+          <input type="number" step="0.01" name="nociception" value="{{ pain_immune.get('nociception', '') }}" />
+        </label>
+        <label>
+          Inflammation：
+          <input type="number" step="0.01" name="inflammation" value="{{ pain_immune.get('inflammation', '') }}" />
+        </label>
+        <button type="submit">保存</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Body Schema</h2>
+      <form method="post" action="/update" class="grid">
+        <label>
+          Motor Cost：
+          <input type="number" step="0.01" name="motor_cost" value="{{ body_schema.get('motor_cost', '') }}" />
+        </label>
+        <label>
+          Proprio Noise：
+          <input type="number" step="0.01" name="proprioception_noise" value="{{ body_schema.get('proprioception_noise', '') }}" />
+        </label>
+        <label>
+          Agency：
+          <input type="number" step="0.01" name="agency" value="{{ body_schema.get('agency', '') }}" />
+        </label>
+        <button type="submit">保存</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Norms</h2>
+      <form method="post" action="/update" class="grid">
+        <label>
+          Legal：
+          <input type="number" step="0.01" name="legal" value="{{ norms.get('legal', '') }}" />
+        </label>
+        <label>
+          Social：
+          <input type="number" step="0.01" name="social" value="{{ norms.get('social', '') }}" />
+        </label>
+        <button type="submit">保存</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>审计日志</h2>
+      <div class="audit">
+        <button onclick="loadAudit()">刷新审计</button>
+        <table id="audit-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Session</th>
+              <th>时间</th>
+              <th>内容</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    async function loadAudit() {
+      const res = await fetch('/audit');
+      const data = await res.json();
+      const tbody = document.querySelector('#audit-table tbody');
+      tbody.innerHTML = '';
+      for (const item of data.items) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${item.id}</td><td>${item.session_id || ''}</td><td>${item.timestamp || ''}</td><td>${item.content}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+    loadAudit();
+  </script>
+</body>
+</html>
+
