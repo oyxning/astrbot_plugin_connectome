@@ -534,3 +534,28 @@ class ConnectomeEngine:
                 self.graph.nodes[n]["weight"] = min(2.0, float(self.graph.nodes[n]["weight"]) + 0.02)
         self._recalc_edge_weights()
         return self.get_node_weights()
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """返回核心指标，用于官方控制台/日志展示。"""
+        try:
+            return {
+                "ei_balance": self.ei_balance,
+                "reasoning_depth": self.depth,
+                "modules_count": len(self.modules or {}),
+                "homeostasis": dict(self.homeo),
+                "autonomic": dict(self.auto),
+                "hormones": dict(self.horm),
+                "circadian": dict(self.circ),
+                "pain_immune": dict(self.pain),
+                "env": {
+                    "local_time": self.env.get("local_time_str"),
+                    "time_zone": self.env.get("time_zone"),
+                    "weather": self.env.get("weather_desc"),
+                    "temp_c": self.env.get("weather_temp_c"),
+                    "wind_ms": self.env.get("weather_wind"),
+                    "lat": self.env.get("lat"),
+                    "lon": self.env.get("lon"),
+                },
+            }
+        except Exception:
+            return {}

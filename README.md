@@ -16,6 +16,7 @@
 - 时间与天气感知：自动获取本地时间/天气，注入上下文并联动昼夜/能量。
 - 守护与审计：伦理守护器评估并记录审计日志（`role='audit'`）。
 - WebUI：仪表化查看与编辑参数，审计列表与表单提交即时生效。
+ - 指标输出：可将核心指标周期性输出到官方控制台，支持命令与配置控制。
 
 **环境要求**
 - Python `3.13`
@@ -40,6 +41,7 @@
   - 生物/心理/辅助系统：`neuromodulators`、`oscillation`、`plasticity`、`myelination`、`cortical_layers`、`basal_ganglia`、`cerebellum`、`hippocampus`、`attention`、`working_memory`、`learning`、`decision`、`executive`、`metacognition`、`emotion`、`motivation`、`habit`、`homeostasis`、`autonomic`、`hormones`、`circadian`、`pain_immune`、`development`、`individual`、`body_schema`、`norms`、`ethics`、`identity`
   - WebUI：`webui_enable`、`webui_host`、`webui_port`
   - 感知：`perception.enable`、`perception.time_zone`、`perception.geo_city`、`perception.geo_lat`、`perception.geo_lon`
+  - 指标：`metrics.enable`、`metrics.interval`、`metrics.on_think`
 
 **命令**
 - 思考与管理：
@@ -52,6 +54,7 @@
   - ` /pain ...`、` /development ...`、` /agency ...`、` /norms ...`、` /ethics ...`、` /identity ...`
 - WebUI 控制：` /webui start|stop|status|open`
 - 感知系统：` /perception status|refresh|tz <TZ>|city <名称>|coord <lat> <lon>`
+ - 指标控制：` /metrics status|start|stop|interval <秒>|once|on_think on|off`
 
 **WebUI**
 - 自动启动：插件初始化时按配置启动 Uvicorn，并通过 `CONNECTOME_DB_PATH` 传递数据库路径。
@@ -62,6 +65,11 @@
 - 刷新时机：引擎初始化与每次 ` /connectome think` 前自动刷新。
 - 联动：将本地小时映射到 `circadian_phase` 与 `sleep_pressure`，在分层步骤中加入环境上下文，并对 `homeostasis.energy` 进行轻微调制。
 - 设置：通过命令或配置调整时区、城市或坐标。
+
+**指标输出（官方控制台）**
+- 内容：`ei_balance`、`reasoning_depth`、模块数量与各系统快照（体内平衡、自主神经、激素、昼夜、疼痛免疫）以及环境（时间/天气/坐标）。
+- 配置：在 `_conf_schema.json` 中使用 `metrics.enable` 开启，`metrics.interval` 设定输出间隔秒数，`metrics.on_think` 控制是否在每次思考后追加一次输出。
+- 命令：使用 ` /metrics status|start|stop|interval <秒>|once|on_think on|off` 管理运行状态与行为。
 
 **持久化与表结构**
 - 记忆库：`memories(id, session_id, role, content, created_at)`
@@ -84,4 +92,3 @@
 
 **许可证**
 - MIT
-

@@ -96,6 +96,15 @@
       "geo_lon": { "description": "经度（优先使用坐标）", "type": "float", "default": null }
     }
   },
+  "metrics": {
+    "description": "官方控制台指标输出设置",
+    "type": "object",
+    "items": {
+      "enable": { "description": "启用周期性指标输出", "type": "bool", "default": false },
+      "interval": { "description": "输出间隔（秒）", "type": "int", "default": 60 },
+      "on_think": { "description": "在每次思考后输出一次指标", "type": "bool", "default": true }
+    }
+  },
   "neuromodulators": {
     "description": "神经调质水平(0-2)",
     "type": "object",

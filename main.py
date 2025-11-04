@@ -4,6 +4,8 @@ from astrbot.api import logger
 import os
 import threading
 import uvicorn
+import json
+import time
 
 from .memory.hippocampus import Hippocampus
 from .connectome.engine import ConnectomeEngine
@@ -65,6 +67,13 @@ class ConnectomePlugin(Star):
         # 坐标可选覆盖城市
         self.geo_lat = perception_conf.get("geo_lat", None)
         self.geo_lon = perception_conf.get("geo_lon", None)
+        # 指标配置（官方控制台输出）
+        metrics_conf = conf.get("metrics", {}) or {}
+        self.metrics_enable = bool(metrics_conf.get("enable", False))
+        self.metrics_interval = int(metrics_conf.get("interval", 60))
+        self.metrics_on_think = bool(metrics_conf.get("on_think", True))
+        self.metrics_thread = None
+        self.metrics_stop = threading.Event()
         self.max_memory_per_session = int(conf.get("max_memory_per_session", 200))
         self.rl_enable = bool(conf.get("rl_enable", True))
         self.rl_alpha = float(conf.get("rl_alpha", 0.1))
@@ -188,11 +197,19 @@ class ConnectomePlugin(Star):
             except Exception as e:
                 logger.info(f"Connectome WebUI: 启动失败 {e}")
 
+        # 启动指标线程（根据插件配置）
+        if self.metrics_enable and not self.metrics_thread:
+            try:
+                self._start_metrics()
+                logger.info(f"Connectome Metrics: 已启动，间隔 {self.metrics_interval}s")
+            except Exception as e:
+                logger.info(f"Connectome Metrics: 启动失败 {e}")
+
     def _start_webui(self):
         if self.webui_running:
             return
         config = uvicorn.Config(
-            "webui.run:app",
+            "astrbot_plugin_connectome.webui.run:app",
             host=self.webui_host,
             port=self.webui_port,
             log_level="info",
@@ -215,6 +232,43 @@ class ConnectomePlugin(Star):
             self.webui_server = None
             self.webui_thread = None
             self.webui_running = False
+
+    # ---- 指标输出 ----
+    def _log_metrics(self):
+        try:
+            metrics = self.engine.get_metrics()
+            logger.info("Connectome 指标: " + json.dumps(metrics, ensure_ascii=False))
+        except Exception:
+            pass
+
+    def _metrics_loop(self):
+        while not self.metrics_stop.is_set():
+            try:
+                self._log_metrics()
+            except Exception:
+                pass
+            # 使用等待而不是 time.sleep 便于快速停止
+            self.metrics_stop.wait(timeout=max(1, int(self.metrics_interval)))
+
+    def _start_metrics(self):
+        try:
+            if self.metrics_thread and self.metrics_thread.is_alive():
+                return
+            self.metrics_stop.clear()
+            self.metrics_thread = threading.Thread(target=self._metrics_loop, daemon=True)
+            self.metrics_thread.start()
+        except Exception:
+            pass
+
+    def _stop_metrics(self):
+        try:
+            self.metrics_stop.set()
+            if self.metrics_thread:
+                self.metrics_thread.join(timeout=3)
+        except Exception:
+            pass
+        finally:
+            self.metrics_thread = None
 
     @filter.command("connectome")
     async def connectome(self, event: AstrMessageEvent):
@@ -306,6 +360,12 @@ class ConnectomePlugin(Star):
                         weights = self.engine.apply_reward(self.last_paths[session_id], reward, self.rl_alpha, self.rl_gamma)
                         self.hippocampus.save_rl_weights(weights)
                 self.hippocampus.add_memory(session_id, "assistant", result)
+                # 在思考后按需输出指标（需开启 metrics.enable）
+                if self.metrics_enable and self.metrics_on_think:
+                    try:
+                        self._log_metrics()
+                    except Exception:
+                        pass
                 yield event.plain_result(result)
             except Exception as e:
                 yield event.plain_result(f"执行失败: {e}")
@@ -365,6 +425,68 @@ class ConnectomePlugin(Star):
             status = "运行中" if self.webui_running else "未运行"
             yield event.plain_result(f"WebUI 状态: {status} @ http://{self.webui_host}:{self.webui_port}/")
             return
+
+    @filter.command("metrics")
+    async def metrics_cmd(self, event: AstrMessageEvent):
+        """管理指标输出：/metrics status|start|stop|interval <秒>|once|on_think on|off"""
+        parts = (event.message_str or "").strip().split()
+        subcmd = parts[1] if len(parts) > 1 else "status"
+
+        if subcmd == "status":
+            running = bool(self.metrics_thread and self.metrics_thread.is_alive())
+            yield event.plain_result(
+                f"Metrics 状态: {'运行中' if running else '未运行'} 使能={self.metrics_enable} 间隔={self.metrics_interval}s 思考时输出={'开' if self.metrics_on_think else '关'}"
+            )
+            return
+
+        if subcmd == "start":
+            self.metrics_enable = True
+            try:
+                self._start_metrics()
+                yield event.plain_result(f"Metrics 已启动，间隔 {self.metrics_interval}s")
+            except Exception as e:
+                yield event.plain_result(f"Metrics 启动失败: {e}")
+            return
+
+        if subcmd == "stop":
+            self.metrics_enable = False
+            try:
+                self._stop_metrics()
+                yield event.plain_result("Metrics 已停止")
+            except Exception as e:
+                yield event.plain_result(f"Metrics 停止失败: {e}")
+            return
+
+        if subcmd == "interval" and len(parts) >= 3:
+            try:
+                self.metrics_interval = max(1, int(parts[2]))
+                # 若正在运行则重启以应用新间隔
+                if self.metrics_thread and self.metrics_thread.is_alive():
+                    self._stop_metrics()
+                    self._start_metrics()
+                yield event.plain_result(f"Metrics 间隔已设置为 {self.metrics_interval}s")
+            except Exception:
+                yield event.plain_result("间隔参数错误，用法: /metrics interval <秒>")
+            return
+
+        if subcmd == "once":
+            try:
+                self._log_metrics()
+                yield event.plain_result("已输出一次指标到官方控制台")
+            except Exception as e:
+                yield event.plain_result(f"输出失败: {e}")
+            return
+
+        if subcmd == "on_think" and len(parts) >= 3:
+            flag = parts[2].lower()
+            if flag in ("on", "off"):
+                self.metrics_on_think = (flag == "on")
+                yield event.plain_result(f"思考时输出指标: {'开' if self.metrics_on_think else '关'}")
+                return
+            yield event.plain_result("用法: /metrics on_think on|off")
+            return
+
+        yield event.plain_result("用法: /metrics status|start|stop|interval <秒>|once|on_think on|off")
 
     @filter.command("perception")
     async def perception_cmd(self, event: AstrMessageEvent):
@@ -999,5 +1121,11 @@ class ConnectomePlugin(Star):
         try:
             if self.webui_running:
                 self._stop_webui()
+        except Exception:
+            pass
+        # 关闭指标线程
+        try:
+            if self.metrics_thread and self.metrics_thread.is_alive():
+                self._stop_metrics()
         except Exception:
             pass
