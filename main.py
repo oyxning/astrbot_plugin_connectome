@@ -5,8 +5,8 @@ import os
 import threading
 import uvicorn
 
-from memory.hippocampus import Hippocampus
-from connectome.engine import ConnectomeEngine
+from .memory.hippocampus import Hippocampus
+from .connectome.engine import ConnectomeEngine
 
 
 @register(
