@@ -340,7 +340,8 @@ class ConnectomePlugin(Star):
             # 仅按照 AstrBot 官方与参考插件的格式：追加到 system_prompt
             compose = self._compose_connectome_prompt()
             base_sp = getattr(req, "system_prompt", "") or ""
-            req.system_prompt = (base_sp + ("\n" if base_sp else "") + compose)
+            # 与 LivingMemory 保持一致：在现有 system_prompt 前置注入
+            req.system_prompt = compose + "\n" + base_sp
 
             # 控制台提示：记录一次注入事件与关键状态
             if self.llm_hook_log_enable:
