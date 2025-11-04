@@ -43,7 +43,7 @@
   - WebUI：`webui_enable`、`webui_host`、`webui_port`
   - 感知：`perception.enable`、`perception.time_zone`、`perception.geo_city`、`perception.geo_lat`、`perception.geo_lon`
   - 指标：`metrics.enable`、`metrics.interval`、`metrics.on_think`
-  - 提示增强：`llm_hook.enable`
+  - 提示增强：`llm_hook.enable`、`llm_hook.log`
 
 **命令**
 - 思考与管理：
@@ -76,7 +76,7 @@
 **LLM 提示增强（自动思考策略）**
 - 行为：在每次向 LLM 发起请求前，插件会将 Connectome 的关键状态（能量/疲劳、昼夜相位、环境感知、模块权重 Top 等）与简洁的思考策略注入系统提示，使模型无需额外指令即可采用更贴近“人类思考”的方式组织回答。
 - 策略：先澄清目标与要点；按能量/疲劳调整推理深度；参考高权重模块组织结构；输出可执行建议并标注风险/不确定性。
-- 透明：该注入不改变用户输入，仅增强系统提示；如需关闭，在配置中设置 `llm_hook.enable=false`。
+- 透明：该注入不改变用户输入，仅增强系统提示；如需关闭，在配置中设置 `llm_hook.enable=false`。若需在控制台观测注入事件与状态，保持 `llm_hook.log=true`（默认启用）。
 
 **持久化与表结构**
 - 记忆库：`memories(id, session_id, role, content, created_at)`

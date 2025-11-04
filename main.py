@@ -87,6 +87,8 @@ class ConnectomePlugin(Star):
         # LLM 提示增强（自动注入 Connectome 状态）
         llm_hook_conf = conf.get("llm_hook", {}) or {}
         self.llm_hook_enable = bool(llm_hook_conf.get("enable", True))
+        self.llm_hook_log_enable = bool(llm_hook_conf.get("log", True))
+        self.llm_req_count = 0
 
         # WebUI 配置
         self.webui_enable = bool(conf.get("webui_enable", True))
@@ -318,6 +320,28 @@ class ConnectomePlugin(Star):
                 req.system_prompt = new_prompt
             except Exception:
                 pass
+
+            # 控制台提示：记录一次注入事件与关键状态
+            if self.llm_hook_log_enable:
+                try:
+                    weights = self.engine.get_node_weights()
+                    top_modules = sorted(weights.items(), key=lambda x: x[1], reverse=True)[:3]
+                    mod_str = ", ".join([f"{k}:{v:.2f}" for k, v in top_modules])
+                    m = self.engine.get_metrics() or {}
+                    homeo = (m.get("homeostasis") or {})
+                    circ = (m.get("circadian") or {})
+                    env = (m.get("env") or {})
+                    energy = homeo.get("energy")
+                    fatigue = homeo.get("fatigue")
+                    phase = circ.get("circadian_phase")
+                    local_time = env.get("local_time")
+                    self.llm_req_count += 1
+                    logger.info(
+                        f"[DEBUG-ConnectomePrompt] 注入系统提示: req={self.llm_req_count}, mods={mod_str}, "
+                        f"energy={energy}, fatigue={fatigue}, phase={phase}, time={local_time}"
+                    )
+                except Exception:
+                    pass
         except Exception:
             # 安全兜底，不影响默认流程
             return

@@ -109,7 +109,8 @@
     "description": "自动将 Connectome 状态注入到 LLM 系统提示",
     "type": "object",
     "items": {
-      "enable": { "description": "启用提示注入", "type": "bool", "default": true }
+      "enable": { "description": "启用提示注入", "type": "bool", "default": true },
+      "log": { "description": "在控制台输出注入提示状态", "type": "bool", "default": true }
     }
   },
   "neuromodulators": {
