@@ -90,6 +90,7 @@
     "type": "object",
     "items": {
       "enable": { "description": "启用时间/天气感知", "type": "bool", "default": true },
+      "lock": { "description": "锁定感知派生与时间后备（保持静态）", "type": "bool", "default": false },
       "time_zone": { "description": "时区标识（IANA TZ，如 Asia/Shanghai）", "type": "string", "default": "Asia/Shanghai" },
       "geo_city": { "description": "城市名称（用于地理编码）", "type": "string", "default": "Shanghai" },
       "geo_lat": { "description": "纬度（优先使用坐标）", "type": "float", "default": null },

@@ -63,6 +63,8 @@ class ConnectomePlugin(Star):
         # 感知配置（时间/天气）
         perception_conf = conf.get("perception", {}) or {}
         self.perception_enable = bool(perception_conf.get("enable", True))
+        # 感知锁定：关闭自动派生（昼夜/睡眠压力/能量调制）与时间后备
+        self.perception_lock = bool(perception_conf.get("lock", False))
         self.time_zone = str(perception_conf.get("time_zone", "Asia/Shanghai"))
         self.geo_city = str(perception_conf.get("geo_city", "Shanghai"))
         # 坐标可选覆盖城市
@@ -191,8 +193,8 @@ class ConnectomePlugin(Star):
         if conf.get("enable_by_default", False):
             logger.info("Connectome: 默认启用模式，新的会话将自动启用")
 
-        # 初始化刷新环境感知
-        if self.perception_enable:
+        # 初始化刷新环境感知（若未锁定）
+        if self.perception_enable and not self.perception_lock:
             try:
                 self.engine.refresh_perception(self.time_zone, self.geo_city if (self.geo_lat is None or self.geo_lon is None) else "", self.geo_lat, self.geo_lon)
                 logger.info("Connectome: 已刷新时间/天气感知")
@@ -220,8 +222,8 @@ class ConnectomePlugin(Star):
                 logger.info(f"Connectome Metrics: 启动失败 {e}")
 
     def _compose_connectome_prompt(self) -> str:
-        # 可选刷新感知，以确保时间/天气最新
-        if self.perception_enable:
+        # 可选刷新感知，以确保时间/天气最新（若未锁定）
+        if self.perception_enable and not self.perception_lock:
             try:
                 self.engine.refresh_perception(self.time_zone, self.geo_city if (self.geo_lat is None or self.geo_lon is None) else "", self.geo_lat, self.geo_lon)
             except Exception:
@@ -230,6 +232,16 @@ class ConnectomePlugin(Star):
         env = m.get("env", {})
         circ = m.get("circadian", {})
         homeo = m.get("homeostasis", {})
+        # 时间后备：若感知缺失则使用系统当前时间；锁定模式不使用后备
+        if not self.perception_lock:
+            try:
+                from datetime import datetime
+                local_time_fallback = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                local_time_fallback = None
+            local_time_used = env.get("local_time") or local_time_fallback
+        else:
+            local_time_used = env.get("local_time")
         # 选取若干关键模块权重，提示思考偏好
         weights = self.engine.get_node_weights()
         top_modules = sorted(weights.items(), key=lambda x: x[1], reverse=True)[:4]
@@ -239,13 +251,18 @@ class ConnectomePlugin(Star):
             "你是一个具备连接组与认知策略的思考体。",
             f"偏好模块权重（Top）：{mod_str}",
             f"状态：能量={homeo.get('energy')} 疲劳={homeo.get('fatigue')} 昼夜相位={circ.get('circadian_phase')} 睡眠压力={circ.get('sleep_pressure')}",
-            f"环境：时间={env.get('local_time')}({env.get('time_zone')}) 天气={env.get('weather')} 温度={env.get('temp_c')}℃ 风速={env.get('wind_ms')}m/s 坐标=({env.get('lat')},{env.get('lon')})",
+        ]
+        if not self.perception_lock:
+            lines.append(
+                f"环境：时间={local_time_used}({env.get('time_zone')}) 天气={env.get('weather')} 温度={env.get('temp_c')}℃ 风速={env.get('wind_ms')}m/s 坐标=({env.get('lat')},{env.get('lon')})"
+            )
+        lines.extend([
             "请按以下策略组织你的回答：",
             "1. 先进行目标澄清与要点列举（简洁条列）。",
             "2. 根据当前能量/疲劳与昼夜相位，控制推理步数与细化程度。",
             "3. 借助高权重模块（如语言/控制/显著性/DMN）组织结构化输出。",
             "4. 给出可执行的建议或结论；如存在风险或不确定性，请标注提示。",
-        ]
+        ])
         return "\n".join([str(s) for s in lines if s is not None])
 
     def _start_webui(self):
@@ -328,6 +345,23 @@ class ConnectomePlugin(Star):
             except Exception:
                 pass
 
+            # 若提供方不支持 system_prompt，尝试注入到消息数组
+            injected_path = []
+            try:
+                msgs = getattr(req, "messages", None)
+                if isinstance(msgs, list):
+                    already_has = False
+                    if len(msgs) > 0 and isinstance(msgs[0], dict):
+                        c0 = str(msgs[0].get("content", ""))
+                        r0 = str(msgs[0].get("role", ""))
+                        if r0 == "system" and ("具备连接组与认知策略" in c0):
+                            already_has = True
+                    if not already_has:
+                        msgs.insert(0, {"role": "system", "content": prompt})
+                        injected_path.append("messages")
+            except Exception:
+                pass
+
             # 控制台提示：记录一次注入事件与关键状态
             if self.llm_hook_log_enable:
                 try:
@@ -341,11 +375,18 @@ class ConnectomePlugin(Star):
                     energy = homeo.get("energy")
                     fatigue = homeo.get("fatigue")
                     phase = circ.get("circadian_phase")
-                    local_time = env.get("local_time")
+                    if not self.perception_lock:
+                        try:
+                            from datetime import datetime
+                            local_time = env.get("local_time") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        except Exception:
+                            local_time = env.get("local_time")
+                    else:
+                        local_time = env.get("local_time")
                     self.llm_req_count += 1
                     logger.info(
                         f"[DEBUG-ConnectomePrompt] 注入系统提示: req={self.llm_req_count}, mods={mod_str}, "
-                        f"energy={energy}, fatigue={fatigue}, phase={phase}, time={local_time}"
+                        f"energy={energy}, fatigue={fatigue}, phase={phase}, time={local_time}, path={'system' if new_prompt else ''}{'|'+('|'.join(injected_path)) if injected_path else ''}"
                     )
                 except Exception:
                     pass
@@ -474,8 +515,8 @@ class ConnectomePlugin(Star):
                 yield event.plain_result("用法: /connectome think <内容>")
                 return
             try:
-                # 思考前刷新时间/天气感知
-                if self.perception_enable:
+                # 思考前刷新时间/天气感知（若未锁定）
+                if self.perception_enable and not self.perception_lock:
                     try:
                         self.engine.refresh_perception(self.time_zone, self.geo_city if (self.geo_lat is None or self.geo_lon is None) else "", self.geo_lat, self.geo_lon)
                     except Exception:
@@ -669,7 +710,7 @@ class ConnectomePlugin(Star):
 
     @filter.command("perception")
     async def perception_cmd(self, event: AstrMessageEvent):
-        """管理时间/天气感知: /perception status|refresh|tz <TZ>|city <NAME>|coord <lat> <lon>"""
+        """管理时间/天气感知: /perception status|on|off|lock on|off|refresh|tz <TZ>|city <NAME>|coord <lat> <lon>"""
         parts = (event.message_str or "").strip().split()
         subcmd = parts[1] if len(parts) > 1 else "status"
 
@@ -682,14 +723,34 @@ class ConnectomePlugin(Star):
             lat = env.get("lat", self.geo_lat)
             lon = env.get("lon", self.geo_lon)
             yield event.plain_result(
+                f"状态={'开' if self.perception_enable else '关'} 锁定={'开' if self.perception_lock else '关'}\n"
                 f"时间={tstr}({tz}) 天气={desc}{f', 温度={temp}℃' if temp is not None else ''} 坐标={lat},{lon}"
             )
             return
 
+        if subcmd == "on":
+            self.perception_enable = True
+            yield event.plain_result("已开启环境感知（自动刷新与派生）")
+            return
+
+        if subcmd == "off":
+            self.perception_enable = False
+            yield event.plain_result("已关闭环境感知（将不再自动刷新或派生）")
+            return
+
+        if subcmd == "lock" and len(parts) >= 3:
+            toggle = parts[2].lower()
+            self.perception_lock = (toggle == "on")
+            yield event.plain_result(f"已{'开启' if self.perception_lock else '关闭'}感知锁定（{'禁用自动派生' if self.perception_lock else '允许自动派生'}）")
+            return
+
         if subcmd == "refresh":
             try:
-                self.engine.refresh_perception(self.time_zone, self.geo_city if (self.geo_lat is None or self.geo_lon is None) else "", self.geo_lat, self.geo_lon)
-                yield event.plain_result("已刷新时间/天气感知")
+                if self.perception_lock:
+                    yield event.plain_result("当前为锁定模式，已跳过自动派生，仅保留现有参数。")
+                else:
+                    self.engine.refresh_perception(self.time_zone, self.geo_city if (self.geo_lat is None or self.geo_lon is None) else "", self.geo_lat, self.geo_lon)
+                    yield event.plain_result("已刷新时间/天气感知")
             except Exception as e:
                 yield event.plain_result(f"刷新失败: {e}")
             return
@@ -1099,6 +1160,45 @@ class ConnectomePlugin(Star):
             existing["circadian"] = base
             self.hippocampus.save_adaptive_params(existing)
             yield event.plain_result(f"已更新昼夜节律: {updates}")
+        except Exception as e:
+            yield event.plain_result(f"更新失败: {e}")
+
+    @filter.command("modules")
+    async def modules_cmd(self, event: AstrMessageEvent):
+        """设置模块权重：/modules dmn=0 salience=0 control=0 ...（范围 0.0~2.0）"""
+        try:
+            text = (event.message_str or "").strip()
+            parts = text.split()[1:] if len(text.split()) > 1 else []
+            updates = {}
+            allow = {
+                "dmn",
+                "salience",
+                "control",
+                "dorsal_attention",
+                "ventral_attention",
+                "language",
+                "visual",
+                "auditory",
+                "sensorimotor",
+                "limbic",
+            }
+            for p in parts:
+                if "=" in p:
+                    k, v = p.split("=", 1)
+                    k = k.strip().lower()
+                    if k in allow:
+                        updates[k] = float(v)
+            if not updates:
+                yield event.plain_result("用法: /modules dmn=... salience=... control=...（支持上述 10 个模块）")
+                return
+            # 应用到引擎
+            self.engine.set_weights(updates)
+            # 持久化到 RL 权重，确保稳定覆盖
+            try:
+                self.hippocampus.save_rl_weights(self.engine.get_node_weights())
+            except Exception:
+                pass
+            yield event.plain_result(f"已更新模块权重: {updates}")
         except Exception as e:
             yield event.plain_result(f"更新失败: {e}")
 

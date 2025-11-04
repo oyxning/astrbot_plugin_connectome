@@ -55,7 +55,8 @@
   - ` /homeostasis ...`、` /autonomic ...`、` /hormone ...`、` /circadian ...`
   - ` /pain ...`、` /development ...`、` /agency ...`、` /norms ...`、` /ethics ...`、` /identity ...`
 - WebUI 控制：` /webui start|stop|status|open`
-- 感知系统：` /perception status|refresh|tz <TZ>|city <名称>|coord <lat> <lon>`
+  - 感知系统：` /perception status|on|off|lock on|off|refresh|tz <TZ>|city <名称>|coord <lat> <lon>`
+  - 模块权重：` /modules dmn=... salience=... control=... dorsal_attention=... ventral_attention=... language=... visual=... auditory=... sensorimotor=... limbic=...`
  - 指标控制：` /metrics status|start|stop|interval <秒>|once|on_think on|off`
  - 提示查看：` /prompt [last|status|on|off|clear]`
 
@@ -65,8 +66,9 @@
 - 功能：仪表盘参数编辑、审计表格、表单保存到 SQLite `adaptive_params` 并在思考前重载。
 
 **时间与天气感知**
-- 刷新时机：引擎初始化与每次 ` /connectome think` 前自动刷新。
-- 联动：将本地小时映射到 `circadian_phase` 与 `sleep_pressure`，在分层步骤中加入环境上下文，并对 `homeostasis.energy` 进行轻微调制。
+- 刷新时机：引擎初始化与每次 ` /connectome think` 前自动刷新（若已锁定则跳过）。
+- 联动：将本地小时映射到 `circadian_phase` 与 `sleep_pressure`，在分层步骤中加入环境上下文，并对 `homeostasis.energy` 进行轻微调制（锁定时不派生、不调制）。
+- 控制：` /perception on|off` 控制是否自动刷新；` /perception lock on|off` 控制是否进行派生与时间后备（锁定后你的零值将如实展示）。
 - 设置：通过命令或配置调整时区、城市或坐标。
 
 **指标输出（官方控制台）**
