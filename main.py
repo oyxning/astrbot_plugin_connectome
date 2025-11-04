@@ -93,6 +93,9 @@ class ConnectomePlugin(Star):
         self.last_system_prompt = None
         self.last_prompt_time = None
         self.last_prompt_session = None
+        logger.info(
+            f"LLM Hook: enable={self.llm_hook_enable} log={self.llm_hook_log_enable} capture={self.llm_hook_capture_enable}"
+        )
 
         # WebUI 配置
         self.webui_enable = bool(conf.get("webui_enable", True))
@@ -402,6 +405,47 @@ class ConnectomePlugin(Star):
                 return
             header = f"[最近系统提示] 时间={self.last_prompt_time or '未知'} 会话={self.last_prompt_session or '未知'}"
             yield event.plain_result(f"{header}\n\n{self.last_system_prompt}")
+        except Exception as e:
+            yield event.plain_result(f"执行失败: {e}")
+
+    @filter.command("llmhook")
+    async def llmhook_cmd(self, event: AstrMessageEvent):
+        """管理提示注入钩子：/llmhook status|on|off|log on|off|capture on|off
+        - status: 显示当前 enable/log/capture 状态
+        - on/off: 开启或关闭系统提示注入
+        - log on/off: 控制是否输出注入日志
+        - capture on/off: 控制是否捕获最近一次系统提示
+        """
+        try:
+            parts = (event.message_str or "").strip().split()
+            sub = parts[1].lower() if len(parts) > 1 else "status"
+            if sub == "status":
+                status = (
+                    f"enable={'on' if self.llm_hook_enable else 'off'} "
+                    f"log={'on' if self.llm_hook_log_enable else 'off'} "
+                    f"capture={'on' if self.llm_hook_capture_enable else 'off'}"
+                )
+                yield event.plain_result(f"LLM Hook 状态: {status}")
+                return
+            if sub == "on":
+                self.llm_hook_enable = True
+                yield event.plain_result("已开启系统提示注入")
+                return
+            if sub == "off":
+                self.llm_hook_enable = False
+                yield event.plain_result("已关闭系统提示注入")
+                return
+            if sub == "log" and len(parts) > 2:
+                toggle = parts[2].lower()
+                self.llm_hook_log_enable = (toggle == "on")
+                yield event.plain_result(f"注入日志已{'开启' if self.llm_hook_log_enable else '关闭'}")
+                return
+            if sub == "capture" and len(parts) > 2:
+                toggle = parts[2].lower()
+                self.llm_hook_capture_enable = (toggle == "on")
+                yield event.plain_result(f"提示捕获已{'开启' if self.llm_hook_capture_enable else '关闭'}")
+                return
+            yield event.plain_result("用法: /llmhook status|on|off|log on|off|capture on|off")
         except Exception as e:
             yield event.plain_result(f"执行失败: {e}")
 
