@@ -17,6 +17,7 @@
 - 守护与审计：伦理守护器评估并记录审计日志（`role='audit'`）。
 - WebUI：仪表化查看与编辑参数，审计列表与表单提交即时生效。
  - 指标输出：可将核心指标周期性输出到官方控制台，支持命令与配置控制。
+ - LLM 提示增强：自动将 Connectome 状态与策略注入系统提示，促使模型进行更“类人”的思考与表达。
 
 **环境要求**
 - Python `3.13`
@@ -42,6 +43,7 @@
   - WebUI：`webui_enable`、`webui_host`、`webui_port`
   - 感知：`perception.enable`、`perception.time_zone`、`perception.geo_city`、`perception.geo_lat`、`perception.geo_lon`
   - 指标：`metrics.enable`、`metrics.interval`、`metrics.on_think`
+  - 提示增强：`llm_hook.enable`
 
 **命令**
 - 思考与管理：
@@ -70,6 +72,11 @@
 - 内容：`ei_balance`、`reasoning_depth`、模块数量与各系统快照（体内平衡、自主神经、激素、昼夜、疼痛免疫）以及环境（时间/天气/坐标）。
 - 配置：在 `_conf_schema.json` 中使用 `metrics.enable` 开启，`metrics.interval` 设定输出间隔秒数，`metrics.on_think` 控制是否在每次思考后追加一次输出。
 - 命令：使用 ` /metrics status|start|stop|interval <秒>|once|on_think on|off` 管理运行状态与行为。
+
+**LLM 提示增强（自动思考策略）**
+- 行为：在每次向 LLM 发起请求前，插件会将 Connectome 的关键状态（能量/疲劳、昼夜相位、环境感知、模块权重 Top 等）与简洁的思考策略注入系统提示，使模型无需额外指令即可采用更贴近“人类思考”的方式组织回答。
+- 策略：先澄清目标与要点；按能量/疲劳调整推理深度；参考高权重模块组织结构；输出可执行建议并标注风险/不确定性。
+- 透明：该注入不改变用户输入，仅增强系统提示；如需关闭，在配置中设置 `llm_hook.enable=false`。
 
 **持久化与表结构**
 - 记忆库：`memories(id, session_id, role, content, created_at)`

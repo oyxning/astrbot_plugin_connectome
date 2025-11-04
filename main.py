@@ -1,6 +1,7 @@
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
+from astrbot.api.provider import ProviderRequest
 import os
 import threading
 import uvicorn
@@ -82,6 +83,10 @@ class ConnectomePlugin(Star):
         rk_conf = conf.get("reward_keywords", {}) or {}
         self.rk_positive = [s.strip() for s in str(rk_conf.get("positive", "成功,好,赞,正确")).split(",") if s.strip()]
         self.rk_negative = [s.strip() for s in str(rk_conf.get("negative", "失败,差,不行,错误")).split(",") if s.strip()]
+
+        # LLM 提示增强（自动注入 Connectome 状态）
+        llm_hook_conf = conf.get("llm_hook", {}) or {}
+        self.llm_hook_enable = bool(llm_hook_conf.get("enable", True))
 
         # WebUI 配置
         self.webui_enable = bool(conf.get("webui_enable", True))
@@ -205,6 +210,35 @@ class ConnectomePlugin(Star):
             except Exception as e:
                 logger.info(f"Connectome Metrics: 启动失败 {e}")
 
+    def _compose_connectome_prompt(self) -> str:
+        # 可选刷新感知，以确保时间/天气最新
+        if self.perception_enable:
+            try:
+                self.engine.refresh_perception(self.time_zone, self.geo_city if (self.geo_lat is None or self.geo_lon is None) else "", self.geo_lat, self.geo_lon)
+            except Exception:
+                pass
+        m = self.engine.get_metrics() or {}
+        env = m.get("env", {})
+        circ = m.get("circadian", {})
+        homeo = m.get("homeostasis", {})
+        # 选取若干关键模块权重，提示思考偏好
+        weights = self.engine.get_node_weights()
+        top_modules = sorted(weights.items(), key=lambda x: x[1], reverse=True)[:4]
+        mod_str = ", ".join([f"{k}:{v:.2f}" for k, v in top_modules])
+        # 生成简洁中文系统提示，融合上下文与思考策略
+        lines = [
+            "你是一个具备连接组与认知策略的思考体。",
+            f"偏好模块权重（Top）：{mod_str}",
+            f"状态：能量={homeo.get('energy')} 疲劳={homeo.get('fatigue')} 昼夜相位={circ.get('circadian_phase')} 睡眠压力={circ.get('sleep_pressure')}",
+            f"环境：时间={env.get('local_time')}({env.get('time_zone')}) 天气={env.get('weather')} 温度={env.get('temp_c')}℃ 风速={env.get('wind_ms')}m/s 坐标=({env.get('lat')},{env.get('lon')})",
+            "请按以下策略组织你的回答：",
+            "1. 先进行目标澄清与要点列举（简洁条列）。",
+            "2. 根据当前能量/疲劳与昼夜相位，控制推理步数与细化程度。",
+            "3. 借助高权重模块（如语言/控制/显著性/DMN）组织结构化输出。",
+            "4. 给出可执行的建议或结论；如存在风险或不确定性，请标注提示。",
+        ]
+        return "\n".join([str(s) for s in lines if s is not None])
+
     def _start_webui(self):
         if self.webui_running:
             return
@@ -269,6 +303,24 @@ class ConnectomePlugin(Star):
             pass
         finally:
             self.metrics_thread = None
+
+    # ---- LLM 请求钩子：自动注入系统提示 ----
+    @filter.on_llm_request()
+    async def _connectome_llm_prompt(self, event: AstrMessageEvent, req: ProviderRequest):
+        if not self.llm_hook_enable:
+            return
+        try:
+            prompt = self._compose_connectome_prompt()
+            base = req.system_prompt if hasattr(req, "system_prompt") else ""
+            new_prompt = (base or "") + ("\n" if base else "") + prompt
+            # 更新 system_prompt
+            try:
+                req.system_prompt = new_prompt
+            except Exception:
+                pass
+        except Exception:
+            # 安全兜底，不影响默认流程
+            return
 
     @filter.command("connectome")
     async def connectome(self, event: AstrMessageEvent):

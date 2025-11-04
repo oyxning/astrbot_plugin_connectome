@@ -105,6 +105,13 @@
       "on_think": { "description": "在每次思考后输出一次指标", "type": "bool", "default": true }
     }
   },
+  "llm_hook": {
+    "description": "自动将 Connectome 状态注入到 LLM 系统提示",
+    "type": "object",
+    "items": {
+      "enable": { "description": "启用提示注入", "type": "bool", "default": true }
+    }
+  },
   "neuromodulators": {
     "description": "神经调质水平(0-2)",
     "type": "object",
