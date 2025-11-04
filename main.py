@@ -91,12 +91,13 @@ class ConnectomePlugin(Star):
         self.llm_hook_enable = bool(llm_hook_conf.get("enable", True))
         self.llm_hook_log_enable = bool(llm_hook_conf.get("log", True))
         self.llm_hook_capture_enable = bool(llm_hook_conf.get("capture", True))
+        self.llm_hook_debug_payload = bool(llm_hook_conf.get("debug", False))
         self.llm_req_count = 0
         self.last_system_prompt = None
         self.last_prompt_time = None
         self.last_prompt_session = None
         logger.info(
-            f"LLM Hook: enable={self.llm_hook_enable} log={self.llm_hook_log_enable} capture={self.llm_hook_capture_enable}"
+            f"LLM Hook: enable={self.llm_hook_enable} log={self.llm_hook_log_enable} capture={self.llm_hook_capture_enable} debug={self.llm_hook_debug_payload}"
         )
 
         # WebUI 配置
@@ -334,33 +335,12 @@ class ConnectomePlugin(Star):
     @filter.on_llm_request()
     async def _connectome_llm_prompt(self, event: AstrMessageEvent, req: ProviderRequest):
         if not self.llm_hook_enable:
-            return
+            return req
         try:
-            prompt = self._compose_connectome_prompt()
-            base = req.system_prompt if hasattr(req, "system_prompt") else ""
-            new_prompt = (base or "") + ("\n" if base else "") + prompt
-            # 更新 system_prompt
-            try:
-                req.system_prompt = new_prompt
-            except Exception:
-                pass
-
-            # 若提供方不支持 system_prompt，尝试注入到消息数组
-            injected_path = []
-            try:
-                msgs = getattr(req, "messages", None)
-                if isinstance(msgs, list):
-                    already_has = False
-                    if len(msgs) > 0 and isinstance(msgs[0], dict):
-                        c0 = str(msgs[0].get("content", ""))
-                        r0 = str(msgs[0].get("role", ""))
-                        if r0 == "system" and ("具备连接组与认知策略" in c0):
-                            already_has = True
-                    if not already_has:
-                        msgs.insert(0, {"role": "system", "content": prompt})
-                        injected_path.append("messages")
-            except Exception:
-                pass
+            # 仅按照 AstrBot 官方与参考插件的格式：追加到 system_prompt
+            compose = self._compose_connectome_prompt()
+            base_sp = getattr(req, "system_prompt", "") or ""
+            req.system_prompt = (base_sp + ("\n" if base_sp else "") + compose)
 
             # 控制台提示：记录一次注入事件与关键状态
             if self.llm_hook_log_enable:
@@ -385,8 +365,8 @@ class ConnectomePlugin(Star):
                         local_time = env.get("local_time")
                     self.llm_req_count += 1
                     logger.info(
-                        f"[DEBUG-ConnectomePrompt] 注入系统提示: req={self.llm_req_count}, mods={mod_str}, "
-                        f"energy={energy}, fatigue={fatigue}, phase={phase}, time={local_time}, path={'system' if new_prompt else ''}{'|'+('|'.join(injected_path)) if injected_path else ''}"
+                        f"[DEBUG-ConnectomePrompt] 注入系统提示(仅 system_prompt): req={self.llm_req_count}, mods={mod_str}, "
+                        f"energy={energy}, fatigue={fatigue}, phase={phase}, time={local_time}"
                     )
                 except Exception:
                     pass
@@ -406,9 +386,20 @@ class ConnectomePlugin(Star):
                         self.last_prompt_session = None
                 except Exception:
                     pass
+
+            # 调试：打印最终请求载荷（脱敏）
+            if self.llm_hook_debug_payload:
+                try:
+                    payload = {
+                        "system_prompt_len": len(getattr(req, "system_prompt", "") or "")
+                    }
+                    logger.info(f"[DEBUG-ProviderRequest] 载荷预览: {json.dumps(payload, ensure_ascii=False)}")
+                except Exception:
+                    pass
+            return req
         except Exception:
             # 安全兜底，不影响默认流程
-            return
+            return req
 
     @filter.command("prompt")
     async def prompt_cmd(self, event: AstrMessageEvent):
@@ -451,11 +442,12 @@ class ConnectomePlugin(Star):
 
     @filter.command("llmhook")
     async def llmhook_cmd(self, event: AstrMessageEvent):
-        """管理提示注入钩子：/llmhook status|on|off|log on|off|capture on|off
+        """管理提示注入钩子：/llmhook status|on|off|log on|off|capture on|off|debug on|off
         - status: 显示当前 enable/log/capture 状态
         - on/off: 开启或关闭系统提示注入
         - log on/off: 控制是否输出注入日志
         - capture on/off: 控制是否捕获最近一次系统提示
+        - debug on/off: 打印最终请求载荷（脱敏），用于确认是否确实注入
         """
         try:
             parts = (event.message_str or "").strip().split()
@@ -464,7 +456,8 @@ class ConnectomePlugin(Star):
                 status = (
                     f"enable={'on' if self.llm_hook_enable else 'off'} "
                     f"log={'on' if self.llm_hook_log_enable else 'off'} "
-                    f"capture={'on' if self.llm_hook_capture_enable else 'off'}"
+                    f"capture={'on' if self.llm_hook_capture_enable else 'off'} "
+                    f"debug={'on' if self.llm_hook_debug_payload else 'off'}"
                 )
                 yield event.plain_result(f"LLM Hook 状态: {status}")
                 return
@@ -486,7 +479,12 @@ class ConnectomePlugin(Star):
                 self.llm_hook_capture_enable = (toggle == "on")
                 yield event.plain_result(f"提示捕获已{'开启' if self.llm_hook_capture_enable else '关闭'}")
                 return
-            yield event.plain_result("用法: /llmhook status|on|off|log on|off|capture on|off")
+            if sub == "debug" and len(parts) > 2:
+                toggle = parts[2].lower()
+                self.llm_hook_debug_payload = (toggle == "on")
+                yield event.plain_result(f"请求载荷调试已{'开启' if self.llm_hook_debug_payload else '关闭'}")
+                return
+            yield event.plain_result("用法: /llmhook status|on|off|log on|off|capture on|off|debug on|off")
         except Exception as e:
             yield event.plain_result(f"执行失败: {e}")
 
