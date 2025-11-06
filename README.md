@@ -104,3 +104,4 @@
 
 **许可证**
 - MIT
+![Connectome 头图](https://raw.githubusercontent.com/oyxning/oyxning/refs/heads/main/connectomelogo.png)
