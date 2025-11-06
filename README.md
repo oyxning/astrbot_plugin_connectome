@@ -1,4 +1,5 @@
 # astrbot_plugin_connectome
+![Connectome 头图](https://raw.githubusercontent.com/oyxning/oyxning/refs/heads/main/connectomelogo.png)
 
 让 AI 具备“类人脑”多尺度思考能力：连接组协同 + 海马体记忆 + 强化学习 + 时间天气感知 + 可视化 WebUI。
 
@@ -104,4 +105,4 @@
 
 **许可证**
 - MIT
-![Connectome 头图](https://raw.githubusercontent.com/oyxning/oyxning/refs/heads/main/connectomelogo.png)
+
